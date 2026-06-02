@@ -13,7 +13,7 @@
         }
 
         body {
-            /* ФОН — вы замените путь на свой файл */
+            /* ФОН: замените URL на свой файл */
             background: url('bg.jpg') no-repeat center center fixed;
             background-size: cover;
             font-family: 'Arial', 'Helvetica', sans-serif;
@@ -38,21 +38,19 @@
             box-shadow: 0 20px 35px rgba(0, 0, 0, 0.4);
             border: 1px solid rgba(108, 108, 108, 0.5);
             overflow: hidden;
-            backdrop-filter: blur(2px); /* лёгкое размытие общего фона */
+            backdrop-filter: blur(2px);
         }
 
-        /* ========== ОБЩИЙ СТИЛЬ ДЛЯ БЛОКОВ (боксов) ========== */
-        /* каждый блок получает двойную подложку: белый квадрат (прозрачность 20%) + тёмный слой (прозрачность 50%) и размытие */
+        /* ========== СТИЛИ ДЛЯ ВСЕХ БЛОКОВ С 20% ПРОЗРАЧНОСТЬЮ И ПОДЛОЖКОЙ ========== */
         .drag-panel, .flask, .situation-card {
             position: relative;
-            background: rgba(51, 51, 51, 0.5);   /* 50% прозрачности тёмный */
-            backdrop-filter: blur(8px);          /* размытие фона за текстом */
+            background: rgba(51, 51, 51, 0.2);   /* #333333 с 20% */
+            backdrop-filter: blur(8px);
             border-radius: 24px;
             z-index: 1;
             border: 1px solid rgba(108, 108, 108, 0.4);
         }
 
-        /* белый подложечный квадрат (псевдоэлемент с прозрачностью 20%) */
         .drag-panel::before, .flask::before, .situation-card::before {
             content: '';
             position: absolute;
@@ -67,12 +65,7 @@
             pointer-events: none;
         }
 
-        /* дополнительная стилизация для контента внутри (чтобы текст был ярким) */
-        .drag-panel, .flask, .situation-card {
-            color: #F9F9F9;
-        }
-
-        /* шапка (top-bar) без изменений, но можно тоже добавить лёгкость */
+        /* шапка */
         .top-bar {
             display: flex;
             justify-content: space-between;
@@ -110,7 +103,7 @@
             color: #FFDD2D;
         }
 
-        /* ситуационная карточка */
+        /* карточка ситуации */
         .situation-card {
             padding: 10px 20px;
             margin: 6px 0 16px 0;
@@ -135,7 +128,7 @@
             margin-bottom: 0;
         }
 
-        /* левая панель */
+        /* левая панель (перетаскиваемые карточки) */
         .drag-panel {
             flex: 1.2;
             padding: 12px;
@@ -164,12 +157,13 @@
             text-align: center;
             cursor: grab;
             border: 1px solid #898989;
+            transition: 0.05s linear;
         }
         .drag-card:active {
             cursor: grabbing;
         }
 
-        /* колбы (боксы) */
+        /* контейнер с 4 боксами (колбами) */
         .flasks-panel {
             flex: 2;
             display: grid;
@@ -182,6 +176,7 @@
             display: flex;
             flex-direction: column;
             border: 2px dashed rgba(137, 137, 137, 0.7);
+            transition: all 0.1s ease;
         }
         .flask.correct-highlight {
             border: 2px solid #FFDD2D;
@@ -225,14 +220,14 @@
             cursor: grabbing;
         }
 
-        /* модальное окно (поверх всего) */
+        /* МОДАЛЬНОЕ ОКНО (выплывающее поверх всего) */
         .modal-overlay {
             position: fixed;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.7);
+            background: rgba(0, 0, 0, 0.75);
             backdrop-filter: blur(6px);
             z-index: 3000;
             display: flex;
@@ -345,7 +340,7 @@
     </div>
 </div>
 
-<!-- модальное окно для обратной связи -->
+<!-- Модальное окно для обратной связи -->
 <div id="feedbackModal" class="modal-overlay">
     <div class="modal-window">
         <p id="modalMessage"></p>
@@ -354,7 +349,7 @@
 </div>
 
 <script>
-    // Данные элементов
+    // Элементы для перетаскивания
     const itemsData = [
         { id: 'factItem', text: '«Переделайте отчёт»', correctCat: 'fact' },
         { id: 'thoughtItem', text: '«Он недоволен моей работой»', correctCat: 'thought' },
@@ -362,6 +357,7 @@
         { id: 'reactionItem', text: 'Хочу оправдаться', correctCat: 'reaction' }
     ];
 
+    // itemLocation: null = не размещён, иначе имя категории (fact, thought, emotion, reaction)
     let itemLocation = {
         factItem: null,
         thoughtItem: null,
@@ -369,6 +365,7 @@
         reactionItem: null
     };
 
+    // Маппинг id контейнеров
     const flaskContents = {
         fact: 'factContent',
         thought: 'thoughtContent',
@@ -376,17 +373,22 @@
         reaction: 'reactionContent'
     };
 
+    // DOM элементы
     const dragContainer = document.getElementById('dragItemsContainer');
     const factDiv = document.getElementById('factContent');
     const thoughtDiv = document.getElementById('thoughtContent');
     const emotionDiv = document.getElementById('emotionContent');
     const reactionDiv = document.getElementById('reactionContent');
 
+    // Drag & drop переменные
     let draggedItemId = null;
-    let draggedSourceType = null;
+    let draggedSourceType = null;   // 'left' или 'flask'
     let draggedSourceFlask = null;
+
+    // Флаг: был ли уже добавлен кристалл (компонент "Ясность")
     let crystalAwarded = false;
 
+    // Модальное окно
     const modal = document.getElementById('feedbackModal');
     const modalMessage = document.getElementById('modalMessage');
     const closeModalBtn = document.getElementById('closeModalBtn');
@@ -407,8 +409,9 @@
 
     closeModalBtn.addEventListener('click', hideModal);
 
+    // Полная перерисовка интерфейса
     function render() {
-        // Левая панель: неразмещённые карточки
+        // 1. Левая панель: элементы без места
         const leftItems = itemsData.filter(item => itemLocation[item.id] === null);
         dragContainer.innerHTML = '';
         leftItems.forEach(item => {
@@ -422,13 +425,13 @@
             dragContainer.appendChild(card);
         });
 
-        // Очистить колбы
+        // 2. Очистить колбы
         factDiv.innerHTML = '';
         thoughtDiv.innerHTML = '';
         emotionDiv.innerHTML = '';
         reactionDiv.innerHTML = '';
 
-        // Заполнить колбы из itemLocation
+        // 3. Заполнить колбы согласно itemLocation
         for (let itemId in itemLocation) {
             const targetCat = itemLocation[itemId];
             if (targetCat && flaskContents[targetCat]) {
@@ -448,7 +451,7 @@
             }
         }
 
-        // Подсветка колб
+        // 4. Подсветка боксов: если содержимое соответствует правильной категории
         const flasksDom = {
             fact: document.getElementById('flaskFact'),
             thought: document.getElementById('flaskThought'),
@@ -471,32 +474,44 @@
             }
         }
 
-        // Проверка полноты и правильности
+        // 5. Проверка: все ли элементы размещены
         const allPlaced = itemsData.every(item => itemLocation[item.id] !== null);
         if (allPlaced) {
             const allCorrect = itemsData.every(item => itemLocation[item.id] === item.correctCat);
             if (allCorrect) {
+                // Все размещены верно
                 if (!crystalAwarded) {
                     crystalAwarded = true;
                     showCrystalAnimation();
                     showFeedbackModal('Всё верно! Факт, мысль, эмоция и реакция распределены правильно.<br>Компонент «Ясность» добавлен в формулу.', true);
                 } else {
-                    showFeedbackModal('Распределение правильное! Вы уже получили компонент «Ясность». Можете тренироваться дальше.', true);
+                    // Уже было правильно, но чтобы не спамить каждый раз, покажем сообщение только если модальное не активно
+                    if (!modal.classList.contains('active')) {
+                        showFeedbackModal('Распределение правильное! Вы уже получили компонент «Ясность». Можно тренироваться дальше.', true);
+                    }
                 }
             } else {
+                // Все размещены, но есть ошибки
                 if (!crystalAwarded) {
-                    showFeedbackModal('Не всё правильно. Попробуйте поменять элементы местами. Факт — объективное событие, мысль — интерпретация, эмоция — чувство, реакция — желание действовать.', false);
+                    if (!modal.classList.contains('active')) {
+                        showFeedbackModal('Не всё правильно. Попробуйте поменять элементы местами. Факт — объективное событие, мысль — интерпретация, эмоция — чувство, реакция — желание действовать.', false);
+                    }
                 } else {
-                    showFeedbackModal('Сейчас распределение неверное. Переставьте карточки в правильные боксы.', false);
+                    // Кристалл уже был, но расстановка сломана
+                    if (!modal.classList.contains('active')) {
+                        showFeedbackModal('Сейчас распределение неверное. Переставьте карточки в правильные боксы.', false);
+                    }
                 }
             }
         } else {
+            // Если не все размещены, закрываем модальное окно, если оно открыто
             if (modal.classList.contains('active')) {
                 hideModal();
             }
         }
     }
 
+    // Drag handlers
     function handleDragStart(e) {
         const target = e.target.closest('[draggable="true"]');
         if (!target) {
@@ -522,6 +537,7 @@
         draggedSourceFlask = null;
     }
 
+    // Настройка зон для drop (боксы)
     const dropZones = document.querySelectorAll('.flask');
     dropZones.forEach(zone => {
         zone.addEventListener('dragover', (e) => {
@@ -533,16 +549,21 @@
             if (!draggedItemId) return;
             const targetCat = zone.getAttribute('data-category');
             if (draggedSourceType === 'left') {
+                // Перемещение из левой панели в бокс
+                // Если в целевом боксе уже есть элемент — вернём его в левую панель
                 const existingId = Object.keys(itemLocation).find(id => itemLocation[id] === targetCat);
                 if (existingId) {
                     itemLocation[existingId] = null;
                 }
                 itemLocation[draggedItemId] = targetCat;
                 render();
-            } else if (draggedSourceType === 'flask') {
-                if (draggedSourceFlask === targetCat) return;
+            } 
+            else if (draggedSourceType === 'flask') {
+                // Перемещение из одного бокса в другой
+                if (draggedSourceFlask === targetCat) return; // то же место
                 const existingId = Object.keys(itemLocation).find(id => itemLocation[id] === targetCat);
                 if (existingId) {
+                    // Меняем местами: существующий элемент отправляем в исходный бокс
                     itemLocation[existingId] = draggedSourceFlask;
                 }
                 itemLocation[draggedItemId] = targetCat;
@@ -551,6 +572,7 @@
         });
     });
 
+    // Возврат в левую панель (drop на левую панель)
     const leftPanel = document.getElementById('dragPanel');
     leftPanel.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -564,6 +586,7 @@
         }
     });
 
+    // Анимация кристалла (падает в первый бокс)
     function showCrystalAnimation() {
         const crystal = document.createElement('div');
         crystal.className = 'crystal-falling';
@@ -593,8 +616,11 @@
         }, 800);
     }
 
+    // Инициализация состояния
     function init() {
-        itemsData.forEach(item => { itemLocation[item.id] = null; });
+        itemsData.forEach(item => {
+            itemLocation[item.id] = null;
+        });
         crystalAwarded = false;
         render();
     }
